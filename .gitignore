@@ -1,0 +1,49 @@
+# ====================================================================
+# Go Compiler & Binary Outputs
+# ====================================================================
+# Compiled binaries (e.g., if you run 'go build -o bin/controlplane ./cmd/controlplane')
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts and coverage profiles
+*.test
+*.out
+coverage.txt
+
+# ====================================================================
+# Dependency Management
+# ====================================================================
+# Godeps and Vendoring (Only ignore if you aren't strictly freezing vendor folders)
+vendor/
+
+# ====================================================================
+# Local Development & Infrastructure (Docker/Upstash)
+# ====================================================================
+# Local environment configuration variables (Never commit real Upstash tokens!)
+.env
+.env.local
+
+# Local Docker volumes and state directories 
+.docker/
+.database_data/
+
+# ====================================================================
+# IDEs and Text Editors
+# ====================================================================
+# Sublime Text artifacts
+*.sublime-project
+*.sublime-workspace
+
+# VS Code / Cursor directories
+.vscode/
+
+# JetBrains / GoLand tracking directories
+.idea/
+
+# OS Specific junk
+Thumbs.db
+.DS_Store
