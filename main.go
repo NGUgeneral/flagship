@@ -55,40 +55,70 @@ func (e *Engine) hydrateFromRedis() {
 
 // CheckRedisConnectivity runs a timed network ping against the cluster instance
 func (e *Engine) CheckRedisConnectivity() error {
-	// Create a localized 2-second timeout context so a dead network doesn't hang the health check eternally
 	pingCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-
-	// Executes a native Redis PING command over the socket pool
 	return e.rdb.Ping(pingCtx).Err()
 }
 
-func (e *Engine) GetFlag(key string) bool {
+// GetFlag evaluates a key composed from the service context
+func (e *Engine) GetFlag(service, key string) bool {
+	compositeKey := fmt.Sprintf("%s:%s", service, key)
+
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.flags[key]
+	return e.flags[compositeKey]
 }
 
-func (e *Engine) SetFlag(key string, value bool) error {
+// SetFlag writes a key composed from the service context into Redis and internal memory
+func (e *Engine) SetFlag(service, key string, value bool) error {
+	compositeKey := fmt.Sprintf("%s:%s", service, key)
+
 	valStr := "false"
 	if value {
 		valStr = "true"
 	}
 	
-	if err := e.rdb.HSet(ctx, redisHashKey, key, valStr).Err(); err != nil {
+	// Modifies the exact specific field inside the global Redis Hash
+	if err := e.rdb.HSet(ctx, redisHashKey, compositeKey, valStr).Err(); err != nil {
 		return fmt.Errorf("redis write failure: %w", err)
 	}
 
 	e.mu.Lock()
-	e.flags[key] = value
+	e.flags[compositeKey] = value
 	e.mu.Unlock()
 
 	return nil
 }
 
+// GetFlagsByService scans the memory cache and filters elements matching the service prefix
+func (e *Engine) GetFlagsByService(service string) map[string]bool {
+	prefix := fmt.Sprintf("%s:", service)
+	prefixLen := len(prefix)
+
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	// Initialize an empty map to hold the results
+	serviceFlags := make(map[string]bool)
+
+	// Loop through your hot-cache memory map
+	for compositeKey, value := range e.flags {
+		// Go's built-in string package alternative: check if it starts with "service:"
+		if len(compositeKey) >= prefixLen && compositeKey[:prefixLen] == prefix {
+			// Strip the "xampl:" prefix so the client gets the raw flag name
+			rawKey := compositeKey[prefixLen:]
+			serviceFlags[rawKey] = value
+		}
+	}
+
+	return serviceFlags
+}
+
+// FlagPayload updated to accept the target client service
 type FlagPayload struct {
-	Key   string `json:"key"`
-	Value bool   `json:"value"`
+	Service string `json:"service"`
+	Key     string `json:"key"`
+	Value   bool   `json:"value"`
 }
 
 func main() {
@@ -101,47 +131,78 @@ func main() {
 	log.Printf("Connecting to Redis target at %s...", redisAddr)
 	engine := NewEngine(redisAddr, redisPassword)
 
-	// New Health Endpoint: Checks local container or production Upstash link status
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
 		if err := engine.CheckRedisConnectivity(); err != nil {
 			log.Printf("Health check failure: Redis unreachable: %v", err)
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprint(w, `{"status": "unhealthy", "redis": "disconnected"}`)
 			return
 		}
-
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"status": "healthy", "redis": "connected"}`)
 	})
 
+	// GET Endpoint: Expects /get?service=xampl&key=test_flag
 	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
+		service := r.URL.Query().Get("service")
 		key := r.URL.Query().Get("key")
-		if key == "" {
-			http.Error(w, "Missing 'key' parameter", http.StatusBadRequest)
+
+		if service == "" || key == "" {
+			http.Error(w, "Missing required 'service' or 'key' parameter", http.StatusBadRequest)
 			return
 		}
-		enabled := engine.GetFlag(key)
-		fmt.Fprintf(w, "Flag [%s]: %t\n", key, enabled)
+
+		enabled := engine.GetFlag(service, key)
+		fmt.Fprintf(w, "Service [%s] Flag [%s]: %t\n", service, key, enabled)
 	})
 
+	// POST Endpoint: Expects json body with {"service": "xampl", "key": "test_flag", "value": true}
 	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+
 		var payload FlagPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 			return
 		}
-		if err := engine.SetFlag(payload.Key, payload.Value); err != nil {
+
+		if payload.Service == "" || payload.Key == "" {
+			http.Error(w, "Fields 'service' and 'key' cannot be empty strings", http.StatusBadRequest)
+			return
+		}
+
+		if err := engine.SetFlag(payload.Service, payload.Key, payload.Value); err != nil {
 			http.Error(w, "Internal persistence error", http.StatusInternalServerError)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Successfully updated flag [%s] to %t\n", payload.Key, payload.Value)
+		fmt.Fprintf(w, "Successfully updated flag [%s:%s] to %t\n", payload.Service, payload.Key, payload.Value)
+	})
+
+	// GET Endpoint: Expects /get_flags?service=xampl
+	http.HandleFunc("/get_flags", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		service := r.URL.Query().Get("service")
+		if service == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error": "Missing required 'service' parameter"}`)
+			return
+		}
+
+		// Fetch the isolated map from our memory cache
+		flagsMatrix := engine.GetFlagsByService(service)
+
+		// Stream the map directly to the network connection as JSON
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(flagsMatrix); err != nil {
+			log.Printf("Failed to encode flags matrix payload: %v", err)
+		}
 	})
 
 	log.Println("Flagship Engine online. Control port listening on :8080...")
