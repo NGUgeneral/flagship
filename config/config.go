@@ -12,6 +12,8 @@ type Config struct {
 	JwtSecretKey    string
 	JwtAlgorithm    string
 	TargetAwsRegion string
+	RedisAddr       string
+	RedisPassword   string
 }
 
 func LoadConfig() *Config {
@@ -37,10 +39,17 @@ func LoadConfig() *Config {
 		region = "eu-central-1"
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
 	return &Config{
 		AppEnv:          os.Getenv("APP_ENV"),
 		JwtSecretKey:    secret,
 		JwtAlgorithm:    algorithm,
 		TargetAwsRegion: region,
+		RedisAddr:       redisAddr,
+		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 	}
 }
