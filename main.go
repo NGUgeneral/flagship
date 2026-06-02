@@ -25,11 +25,29 @@ type Engine struct {
 	rdb   *redis.Client
 }
 
-func NewEngine(redisAddr, redisPassword string) *Engine {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-	})
+// Accept the full config struct so we can inspect both RedisURL and local configuration fields
+func NewEngine(cfg *config.Config) *Engine {
+	var opt *redis.Options
+	var err error
+
+	// 1. If the single unified Redis URL is active (Production / Upstash)
+	if cfg.RedisURL != "" {
+		opt, err = redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			log.Fatalf("CRITICAL: Failed to parse secure Redis connection URL: %v", err)
+		}
+		log.Println("🔒 Redis client initialized securely via connection URL string (TLS Enabled).")
+	} else {
+		// 2. Fallback cleanly to classic separate parameters for unencrypted local Docker environments
+		opt = &redis.Options{
+			Addr:     cfg.RedisAddr,
+			Password: cfg.RedisPassword,
+			DB:       0,
+		}
+		log.Printf("🔓 Redis client initialized via unencrypted parameters. Target: %s", cfg.RedisAddr)
+	}
+
+	rdb := redis.NewClient(opt)
 
 	engine := &Engine{
 		flags: make(map[string]bool),
@@ -117,8 +135,8 @@ type FlagPayload struct {
 func main() {
 	cfg := config.LoadConfig()
 
-	log.Printf("Connecting to Redis target at %s...", cfg.RedisAddr)
-	engine := NewEngine(cfg.RedisAddr, cfg.RedisPassword)
+	// Initialize engine with the complete configuration context
+	engine := NewEngine(cfg)
 
 	// Initialize authentication middleware using loaded configurations
 	secretBytes := []byte(cfg.JwtSecretKey)
@@ -139,10 +157,7 @@ func main() {
 	})
 
 	// --- PROTECTED ENDPOINTS ---
-	// We instantiate the routing handlers inside standard http.HandlerFunc wrappers
-	// so they can be parsed as a full http.Handler type by our interceptor execution chain.
 
-	// GET Endpoint: Expects /get?service=xampl&key=test_flag
 	getHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := r.URL.Query().Get("service")
 		key := r.URL.Query().Get("key")
@@ -156,7 +171,6 @@ func main() {
 		fmt.Fprintf(w, "Service [%s] Flag [%s]: %t\n", service, key, enabled)
 	})
 
-	// POST Endpoint: Expects json body with {"service": "xampl", "key": "test_flag", "value": true}
 	setHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -183,7 +197,6 @@ func main() {
 		fmt.Fprintf(w, "Successfully updated flag [%s:%s] to %t\n", payload.Service, payload.Key, payload.Value)
 	})
 
-	// GET Endpoint: Expects /get_flags?service=xampl
 	getFlagsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -194,18 +207,14 @@ func main() {
 			return
 		}
 
-		// Fetch the isolated map from our memory cache
 		flagsMatrix := engine.GetFlagsByService(service)
 
-		// Stream the map directly to the network connection as JSON
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(flagsMatrix); err != nil {
 			log.Printf("Failed to encode flags matrix payload: %v", err)
 		}
 	})
 
-	// 4. Register the protected routes wrapped inside the middleware execution chain
-	// http.Handle maps standard interfaces implementing the http.Handler type signature
 	http.Handle("/get", authGuard(getHandler))
 	http.Handle("/set", authGuard(setHandler))
 	http.Handle("/get_flags", authGuard(getFlagsHandler))
