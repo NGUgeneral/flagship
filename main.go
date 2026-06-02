@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
+
+	"flagship/config"
+	"flagship/middleware"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
+
 const redisHashKey = "flagship:v1:flags"
 
 type Engine struct {
@@ -53,14 +56,12 @@ func (e *Engine) hydrateFromRedis() {
 	log.Printf("Successfully hydrated %d flags into memory cache using namespace [%s].", len(e.flags), redisHashKey)
 }
 
-// CheckRedisConnectivity runs a timed network ping against the cluster instance
 func (e *Engine) CheckRedisConnectivity() error {
 	pingCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return e.rdb.Ping(pingCtx).Err()
 }
 
-// GetFlag evaluates a key composed from the service context
 func (e *Engine) GetFlag(service, key string) bool {
 	compositeKey := fmt.Sprintf("%s:%s", service, key)
 
@@ -69,7 +70,6 @@ func (e *Engine) GetFlag(service, key string) bool {
 	return e.flags[compositeKey]
 }
 
-// SetFlag writes a key composed from the service context into Redis and internal memory
 func (e *Engine) SetFlag(service, key string, value bool) error {
 	compositeKey := fmt.Sprintf("%s:%s", service, key)
 
@@ -77,8 +77,7 @@ func (e *Engine) SetFlag(service, key string, value bool) error {
 	if value {
 		valStr = "true"
 	}
-	
-	// Modifies the exact specific field inside the global Redis Hash
+
 	if err := e.rdb.HSet(ctx, redisHashKey, compositeKey, valStr).Err(); err != nil {
 		return fmt.Errorf("redis write failure: %w", err)
 	}
@@ -90,7 +89,6 @@ func (e *Engine) SetFlag(service, key string, value bool) error {
 	return nil
 }
 
-// GetFlagsByService scans the memory cache and filters elements matching the service prefix
 func (e *Engine) GetFlagsByService(service string) map[string]bool {
 	prefix := fmt.Sprintf("%s:", service)
 	prefixLen := len(prefix)
@@ -98,14 +96,10 @@ func (e *Engine) GetFlagsByService(service string) map[string]bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	// Initialize an empty map to hold the results
 	serviceFlags := make(map[string]bool)
 
-	// Loop through your hot-cache memory map
 	for compositeKey, value := range e.flags {
-		// Go's built-in string package alternative: check if it starts with "service:"
 		if len(compositeKey) >= prefixLen && compositeKey[:prefixLen] == prefix {
-			// Strip the "xampl:" prefix so the client gets the raw flag name
 			rawKey := compositeKey[prefixLen:]
 			serviceFlags[rawKey] = value
 		}
@@ -114,7 +108,6 @@ func (e *Engine) GetFlagsByService(service string) map[string]bool {
 	return serviceFlags
 }
 
-// FlagPayload updated to accept the target client service
 type FlagPayload struct {
 	Service string `json:"service"`
 	Key     string `json:"key"`
@@ -122,14 +115,16 @@ type FlagPayload struct {
 }
 
 func main() {
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-	redisPassword := os.Getenv("REDIS_PASSWORD")
+	cfg := config.LoadConfig()
 
-	log.Printf("Connecting to Redis target at %s...", redisAddr)
-	engine := NewEngine(redisAddr, redisPassword)
+	log.Printf("Connecting to Redis target at %s...", cfg.RedisAddr)
+	engine := NewEngine(cfg.RedisAddr, cfg.RedisPassword)
+
+	// Initialize authentication middleware using loaded configurations
+	secretBytes := []byte(cfg.JwtSecretKey)
+	authGuard := middleware.AuthMiddleware(secretBytes, cfg.JwtAlgorithm)
+
+	// --- PUBLIC ENDPOINTS ---
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -143,8 +138,12 @@ func main() {
 		fmt.Fprint(w, `{"status": "healthy", "redis": "connected"}`)
 	})
 
+	// --- PROTECTED ENDPOINTS ---
+	// We instantiate the routing handlers inside standard http.HandlerFunc wrappers
+	// so they can be parsed as a full http.Handler type by our interceptor execution chain.
+
 	// GET Endpoint: Expects /get?service=xampl&key=test_flag
-	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
+	getHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := r.URL.Query().Get("service")
 		key := r.URL.Query().Get("key")
 
@@ -158,7 +157,7 @@ func main() {
 	})
 
 	// POST Endpoint: Expects json body with {"service": "xampl", "key": "test_flag", "value": true}
-	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
+	setHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -185,7 +184,7 @@ func main() {
 	})
 
 	// GET Endpoint: Expects /get_flags?service=xampl
-	http.HandleFunc("/get_flags", func(w http.ResponseWriter, r *http.Request) {
+	getFlagsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		service := r.URL.Query().Get("service")
@@ -205,7 +204,13 @@ func main() {
 		}
 	})
 
-	log.Println("Flagship Engine online. Control port listening on :8080...")
+	// 4. Register the protected routes wrapped inside the middleware execution chain
+	// http.Handle maps standard interfaces implementing the http.Handler type signature
+	http.Handle("/get", authGuard(getHandler))
+	http.Handle("/set", authGuard(setHandler))
+	http.Handle("/get_flags", authGuard(getFlagsHandler))
+
+	log.Printf("Flagship Engine online [%s mode]. Control port listening on :8080...", cfg.AppEnv)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server panic: %v", err)
 	}
