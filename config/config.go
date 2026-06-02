@@ -19,6 +19,7 @@ type Config struct {
 	TargetAwsRegion string
 	RedisAddr       string
 	RedisPassword   string
+	RedisURL        string
 }
 
 func LoadConfig() *Config {
@@ -47,6 +48,8 @@ func LoadConfig() *Config {
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
+
+	redisURL := os.Getenv("REDIS_URL")
 
 	var secret string
 
@@ -88,5 +91,6 @@ func LoadConfig() *Config {
 		TargetAwsRegion: region,
 		RedisAddr:       redisAddr,
 		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
+		RedisURL:        redisURL,
 	}
 }
