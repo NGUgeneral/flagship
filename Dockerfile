@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy dependency manifests first to leverage Docker layer caching
 COPY go.mod go.sum ./
-RUN go.mod download
+RUN go mod download
 
 # Copy the rest of the source code files
 COPY . .
