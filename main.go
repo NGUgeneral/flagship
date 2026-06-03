@@ -133,7 +133,9 @@ type FlagPayload struct {
 }
 
 func main() {
+	log.Printf("📢 DEBUG RUNTIME ENV: REDIS_URL length is %d", len(os.Getenv("REDIS_URL")))
 	cfg := config.LoadConfig()
+	log.Printf("📢 DEBUG RUNTIME ENV: cfg REDIS_URL length is %d", len(cfg.RedisURL))
 
 	// Initialize engine with the complete configuration context
 	engine := NewEngine(cfg)
