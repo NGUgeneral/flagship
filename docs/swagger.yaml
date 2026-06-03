@@ -1,0 +1,167 @@
+basePath: /
+definitions:
+  main.ErrorResponse:
+    properties:
+      error:
+        example: Missing required parameters
+        type: string
+    type: object
+  main.FlagPayload:
+    properties:
+      key:
+        example: enable-stripe-v2
+        type: string
+      service:
+        example: billing-service
+        type: string
+      value:
+        example: true
+        type: boolean
+    type: object
+  main.HealthResponse:
+    properties:
+      redis:
+        example: connected
+        type: string
+      status:
+        example: healthy
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: High-performance inline feature flagging control plane.
+  title: Flagship Feature Engine API
+  version: "1.0"
+paths:
+  /get:
+    get:
+      description: Evaluates a single state status targeting a specific composite
+        namespace binding key.
+      parameters:
+      - description: Target identifying domain service space
+        in: query
+        name: service
+        required: true
+        type: string
+      - description: The distinct targeting feature gate identifier identifier
+        in: query
+        name: key
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: 'Service [billing] Flag [enable-v2]: true'
+          schema:
+            type: string
+        "400":
+          description: Missing required parameters
+          schema:
+            type: string
+        "401":
+          description: Unauthorized missing payload token signature
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get Individual Feature Flag Evaluation
+      tags:
+      - Evaluation
+  /get_flags:
+    get:
+      description: Extracts the complete underlying operational state dataset block
+        bounded to a single contextual microservice domain.
+      parameters:
+      - description: Target identifying domain service space context parameter mapping
+          string
+        in: query
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Example output dictionary block payload
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get All Component Configuration Flags for a Service Namespace
+      tags:
+      - Evaluation
+  /health:
+    get:
+      description: Verifies running web engine operations and synchronous underlying
+        upstash storage ping telemetry.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.HealthResponse'
+        "503":
+          description: Service Unavailable - Storage cluster connection broken
+          schema:
+            $ref: '#/definitions/main.HealthResponse'
+      summary: Engine Health Check
+      tags:
+      - System
+  /set:
+    post:
+      consumes:
+      - application/json
+      description: Commits an administrative state change parameter downward to secure
+        cluster storage and instantly syncs internal tracking memory cache state.
+      parameters:
+      - description: Target state runtime mutation specification matrix description
+          block
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.FlagPayload'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Successfully updated flag [billing:enable-v2] to true
+          schema:
+            type: string
+        "400":
+          description: Invalid configuration format parameters
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal persistence storage communication error context
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Mutate/Set Target Feature State
+      tags:
+      - Administration
+securityDefinitions:
+  BearerAuth:
+    description: Type 'Bearer <your_jwt_token>' to access protected routes.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
