@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -31,7 +30,6 @@ func NewEngine(cfg *config.Config) *Engine {
 	var opt *redis.Options
 	var err error
 
-	// 1. If the single unified Redis URL is active (Production / Upstash)
 	if cfg.RedisURL != "" {
 		opt, err = redis.ParseURL(cfg.RedisURL)
 		if err != nil {
@@ -39,7 +37,6 @@ func NewEngine(cfg *config.Config) *Engine {
 		}
 		log.Println("🔒 Redis client initialized securely via connection URL string (TLS Enabled).")
 	} else {
-		// 2. Fallback cleanly to classic separate parameters for unencrypted local Docker environments
 		opt = &redis.Options{
 			Addr:     cfg.RedisAddr,
 			Password: cfg.RedisPassword,
@@ -134,11 +131,7 @@ type FlagPayload struct {
 }
 
 func main() {
-	log.Printf("📢 DEBUG RUNTIME ENV: REDIS_URL length is %d", len(os.Getenv("REDIS_URL")))
 	cfg := config.LoadConfig()
-	log.Printf("📢 DEBUG RUNTIME ENV: cfg REDIS_URL length is %d", len(cfg.RedisURL))
-
-	// Initialize engine with the complete configuration context
 	engine := NewEngine(cfg)
 
 	// Initialize authentication middleware using loaded configurations
@@ -146,7 +139,6 @@ func main() {
 	authGuard := middleware.AuthMiddleware(secretBytes, cfg.JwtAlgorithm)
 
 	// --- PUBLIC ENDPOINTS ---
-
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := engine.CheckRedisConnectivity(); err != nil {
@@ -160,7 +152,6 @@ func main() {
 	})
 
 	// --- PROTECTED ENDPOINTS ---
-
 	getHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := r.URL.Query().Get("service")
 		key := r.URL.Query().Get("key")
