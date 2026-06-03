@@ -20,12 +20,11 @@ import (
 
 var ctx = context.Background()
 
-const redisHashKey = "flagship:v1:flags"
-
 type Engine struct {
-	mu    sync.RWMutex
-	flags map[string]bool
-	rdb   *redis.Client
+	mu           sync.RWMutex
+	flags        map[string]bool
+	rdb          *redis.Client
+	redisHashKey string
 }
 
 func NewEngine(cfg *config.Config) *Engine {
@@ -50,8 +49,9 @@ func NewEngine(cfg *config.Config) *Engine {
 	rdb := redis.NewClient(opt)
 
 	engine := &Engine{
-		flags: make(map[string]bool),
-		rdb:   rdb,
+		flags:        make(map[string]bool),
+		rdb:          rdb,
+		redisHashKey: cfg.RedisHashKey,
 	}
 
 	engine.hydrateFromRedis()
@@ -62,7 +62,7 @@ func (e *Engine) hydrateFromRedis() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	storedFlags, err := e.rdb.HGetAll(ctx, redisHashKey).Result()
+	storedFlags, err := e.rdb.HGetAll(ctx, e.redisHashKey).Result()
 	if err != nil {
 		log.Printf("Warning: Failed to hydrate from Redis, starting fresh: %v", err)
 		return
@@ -71,7 +71,7 @@ func (e *Engine) hydrateFromRedis() {
 	for k, v := range storedFlags {
 		e.flags[k] = (v == "true")
 	}
-	log.Printf("Successfully hydrated %d flags into memory cache using namespace [%s].", len(e.flags), redisHashKey)
+	log.Printf("Successfully hydrated %d flags into memory cache using namespace [%s].", len(e.flags), e.redisHashKey)
 }
 
 func (e *Engine) CheckRedisConnectivity() error {
@@ -96,7 +96,7 @@ func (e *Engine) SetFlag(service, key string, value bool) error {
 		valStr = "true"
 	}
 
-	if err := e.rdb.HSet(ctx, redisHashKey, compositeKey, valStr).Err(); err != nil {
+	if err := e.rdb.HSet(ctx, e.redisHashKey, compositeKey, valStr).Err(); err != nil {
 		return fmt.Errorf("redis write failure: %w", err)
 	}
 

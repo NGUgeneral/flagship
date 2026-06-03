@@ -20,6 +20,7 @@ type Config struct {
 	RedisAddr       string
 	RedisPassword   string
 	RedisURL        string
+	RedisHashKey    string
 }
 
 func LoadConfig() *Config {
@@ -50,6 +51,11 @@ func LoadConfig() *Config {
 	}
 
 	redisURL := os.Getenv("REDIS_URL")
+
+	redisHashKey := os.Getenv("REDIS_HASH_KEY")
+	if redisHashKey == "" {
+		redisHashKey = "flagship:v1:flags"
+	}
 
 	var secret string
 
@@ -92,5 +98,6 @@ func LoadConfig() *Config {
 		RedisAddr:       redisAddr,
 		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 		RedisURL:        redisURL,
+		RedisHashKey:    redisHashKey,
 	}
 }
