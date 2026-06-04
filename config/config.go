@@ -14,6 +14,7 @@ import (
 
 type Config struct {
 	AppEnv          string
+	AppHost         string
 	JwtSecretKey    string
 	JwtAlgorithm    string
 	TargetAwsRegion string
@@ -27,6 +28,11 @@ func LoadConfig() *Config {
 	appEnv := os.Getenv("APP_ENV")
 	if appEnv == "" {
 		appEnv = "local"
+	}
+
+	appHost := os.Getenv("APP_HOST")
+	if appHost == "" {
+		appHost = "localhost:8080"
 	}
 
 	if appEnv != "production" {
@@ -49,6 +55,8 @@ func LoadConfig() *Config {
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
+
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 
 	redisURL := os.Getenv("REDIS_URL")
 
@@ -92,11 +100,12 @@ func LoadConfig() *Config {
 
 	return &Config{
 		AppEnv:          appEnv,
+		AppHost:         appHost,
 		JwtSecretKey:    secret,
 		JwtAlgorithm:    algorithm,
 		TargetAwsRegion: region,
 		RedisAddr:       redisAddr,
-		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
+		RedisPassword:   redisPassword,
 		RedisURL:        redisURL,
 		RedisHashKey:    redisHashKey,
 	}

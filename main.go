@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"flagship/config"
+	"flagship/docs"
 	"flagship/middleware"
 
 	_ "flagship/docs" // Dynamically generated package by 'swag init'
@@ -162,6 +163,7 @@ func main() {
 	http.HandleFunc("/health", handleHealth(engine))
 
 	// --- AUTOMATED INTERACTIVE DOCUMENTATION TESTBENCH ---
+	docs.SwaggerInfo.Host = cfg.AppHost
 	http.Handle("/docs/", httpSwagger.Handler(
 		httpSwagger.URL("/docs/doc.json"),
 	))
