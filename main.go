@@ -195,6 +195,7 @@ func main() {
 // @Produce      json
 // @Success      200  {object}  HealthResponse
 // @Failure      503  {object}  HealthResponse  "Service Unavailable - Storage cluster connection broken"
+// @Failure      429      {object}  middleware.RateCheck429Response "Too Many Requests - Rate limit exceeded or quota exhausted"
 // @Router       /health [get]
 func handleHealth(engine *Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -221,6 +222,7 @@ func handleHealth(engine *Engine) http.HandlerFunc {
 // @Success      200      {string}  string  "Service [billing] Flag [enable-v2]: true"
 // @Failure      400      {string}  string  "Missing required parameters"
 // @Failure      401      {string}  string  "Unauthorized missing payload token signature"
+// @Failure      429      {object}  middleware.RateCheck429Response "Too Many Requests - Rate limit exceeded or quota exhausted"
 // @Router       /get [get]
 func handleGetFlag(engine *Engine) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +250,7 @@ func handleGetFlag(engine *Engine) func(w http.ResponseWriter, r *http.Request) 
 // @Success      200      {string}  string       "Successfully updated flag [billing:enable-v2] to true"
 // @Failure      400      {string}  string       "Invalid configuration format parameters"
 // @Failure      401      {string}  string       "Unauthorized"
+// @Failure      429      {object}  middleware.RateCheck429Response "Too Many Requests - Rate limit exceeded or quota exhausted"
 // @Failure      500      {string}  string       "Internal persistence storage communication error context"
 // @Router       /set [post]
 func handleSetFlag(engine *Engine) func(w http.ResponseWriter, r *http.Request) {
@@ -288,6 +291,7 @@ func handleSetFlag(engine *Engine) func(w http.ResponseWriter, r *http.Request) 
 // @Success      200      {object}  map[string]bool  "Example output dictionary block payload"
 // @Failure      400      {object}  ErrorResponse
 // @Failure      401      {string}  string           "Unauthorized"
+// @Failure      429      {object}  middleware.RateCheck429Response "Too Many Requests - Rate limit exceeded or quota exhausted"
 // @Router       /get_flags [get]
 func handleGetFlagsByService(engine *Engine) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {

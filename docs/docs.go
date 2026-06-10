@@ -64,6 +64,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests - Rate limit exceeded or quota exhausted",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.RateCheck429Response"
+                        }
                     }
                 }
             }
@@ -113,6 +119,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    "429": {
+                        "description": "Too Many Requests - Rate limit exceeded or quota exhausted",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.RateCheck429Response"
+                        }
                     }
                 }
             }
@@ -132,6 +144,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.HealthResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests - Rate limit exceeded or quota exhausted",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.RateCheck429Response"
                         }
                     },
                     "503": {
@@ -191,6 +209,12 @@ const docTemplate = `{
                             "type": "string"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests - Rate limit exceeded or quota exhausted",
+                        "schema": {
+                            "$ref": "#/definitions/middleware.RateCheck429Response"
+                        }
+                    },
                     "500": {
                         "description": "Internal persistence storage communication error context",
                         "schema": {
@@ -238,6 +262,31 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "healthy"
+                }
+            }
+        },
+        "middleware.RateCheck429Response": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "$ref": "#/definitions/middleware.RateLimiterErrorDetail"
+                }
+            }
+        },
+        "middleware.RateLimiterErrorDetail": {
+            "type": "object",
+            "properties": {
+                "current_count": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Rate limit exceeded"
                 }
             }
         }

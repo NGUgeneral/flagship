@@ -37,6 +37,23 @@ type RateLimiterClient struct {
 	lambdaURL  string
 }
 
+// RateLimiterErrorDetail maps the internal 429 error structure from Phase 1
+type RateLimiterErrorDetail struct {
+	Message      string `json:"message" example:"Rate limit exceeded"`
+	CurrentCount int    `json:"current_count" example:"11"`
+	Limit        int    `json:"limit" example:"10"`
+}
+
+// RateCheck429Response maps the native FastAPI HTTPException structure for a 429 status
+type RateCheck429Response struct {
+	Detail RateLimiterErrorDetail `json:"detail"`
+}
+
+// RateCheck400Response maps the native FastAPI HTTPException structure for a 400 status
+type RateCheck400Response struct {
+	Detail string `json:"detail" example:"Token-authenticated requests must explicitly supply limit and window metrics."`
+}
+
 // NewRateLimiterClient instantiates a client configured with aggressive connection pooling
 func NewRateLimiterClient(lambdaURL string, timeout time.Duration) *RateLimiterClient {
 	return &RateLimiterClient{
