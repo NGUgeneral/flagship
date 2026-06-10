@@ -27,6 +27,23 @@ definitions:
         example: healthy
         type: string
     type: object
+  middleware.RateCheck429Response:
+    properties:
+      detail:
+        $ref: '#/definitions/middleware.RateLimiterErrorDetail'
+    type: object
+  middleware.RateLimiterErrorDetail:
+    properties:
+      current_count:
+        example: 11
+        type: integer
+      limit:
+        example: 10
+        type: integer
+      message:
+        example: Rate limit exceeded
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -64,6 +81,10 @@ paths:
           description: Unauthorized missing payload token signature
           schema:
             type: string
+        "429":
+          description: Too Many Requests - Rate limit exceeded or quota exhausted
+          schema:
+            $ref: '#/definitions/middleware.RateCheck429Response'
       security:
       - BearerAuth: []
       summary: Get Individual Feature Flag Evaluation
@@ -97,6 +118,10 @@ paths:
           description: Unauthorized
           schema:
             type: string
+        "429":
+          description: Too Many Requests - Rate limit exceeded or quota exhausted
+          schema:
+            $ref: '#/definitions/middleware.RateCheck429Response'
       security:
       - BearerAuth: []
       summary: Get All Component Configuration Flags for a Service Namespace
@@ -113,6 +138,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.HealthResponse'
+        "429":
+          description: Too Many Requests - Rate limit exceeded or quota exhausted
+          schema:
+            $ref: '#/definitions/middleware.RateCheck429Response'
         "503":
           description: Service Unavailable - Storage cluster connection broken
           schema:
@@ -149,6 +178,10 @@ paths:
           description: Unauthorized
           schema:
             type: string
+        "429":
+          description: Too Many Requests - Rate limit exceeded or quota exhausted
+          schema:
+            $ref: '#/definitions/middleware.RateCheck429Response'
         "500":
           description: Internal persistence storage communication error context
           schema:
