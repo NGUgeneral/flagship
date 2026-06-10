@@ -22,6 +22,7 @@ type Config struct {
 	RedisPassword   string
 	RedisURL        string
 	RedisHashKey    string
+	RateLimiterURL  string
 }
 
 func LoadConfig() *Config {
@@ -63,6 +64,11 @@ func LoadConfig() *Config {
 	redisHashKey := os.Getenv("REDIS_HASH_KEY")
 	if redisHashKey == "" {
 		redisHashKey = "flagship:v1:flags"
+	}
+
+	rateLimiterURL := os.Getenv("RATE_LIMITER_URL")
+	if rateLimiterURL == "" {
+		log.Fatal("CRITICAL: RATE_LIMITER_URL environment variable is required but not set!")
 	}
 
 	var secret string
@@ -108,5 +114,6 @@ func LoadConfig() *Config {
 		RedisPassword:   redisPassword,
 		RedisURL:        redisURL,
 		RedisHashKey:    redisHashKey,
+		RateLimiterURL:  rateLimiterURL,
 	}
 }

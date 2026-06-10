@@ -159,22 +159,26 @@ func main() {
 	secretBytes := []byte(cfg.JwtSecretKey)
 	authGuard := middleware.AuthMiddleware(secretBytes, cfg.JwtAlgorithm)
 
+	const RateLimitTimeout = 40 * time.Millisecond
+
+	limiterClient := middleware.NewRateLimiterClient(cfg.RateLimiterURL, RateLimitTimeout)
+	rateGuard := middleware.RateLimitGuard(limiterClient, RateLimitTimeout)
+
 	// --- PUBLIC ROUTING ---
 	http.HandleFunc("/health", handleHealth(engine))
 
 	// --- AUTOMATED INTERACTIVE DOCUMENTATION TESTBENCH ---
 	docs.SwaggerInfo.Host = cfg.AppHost
-	http.Handle("/docs/", httpSwagger.Handler(
-		httpSwagger.URL("/docs/doc.json"),
-	))
+	http.Handle("/docs/", httpSwagger.Handler(httpSwagger.URL("/docs/doc.json")))
 	http.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
 	})
 
-	// --- PROTECTED ROUTING ---
-	http.Handle("/get", authGuard(http.HandlerFunc(handleGetFlag(engine))))
-	http.Handle("/set", authGuard(http.HandlerFunc(handleSetFlag(engine))))
-	http.Handle("/get_flags", authGuard(http.HandlerFunc(handleGetFlagsByService(engine))))
+	// --- PROTECTED ROUTING WITH INLINE DEFENSIVE RATE LIMITING ---
+	// Execution order: Auth verification -> Rate validation checks -> Flag computation logic
+	http.Handle("/get", authGuard(rateGuard(http.HandlerFunc(handleGetFlag(engine)))))
+	http.Handle("/set", authGuard(rateGuard(http.HandlerFunc(handleSetFlag(engine)))))
+	http.Handle("/get_flags", authGuard(rateGuard(http.HandlerFunc(handleGetFlagsByService(engine)))))
 
 	log.Printf("Flagship Engine online [%s mode]. Control port listening on :8080...", cfg.AppEnv)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
