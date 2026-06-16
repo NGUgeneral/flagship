@@ -180,8 +180,13 @@ func main() {
 	http.Handle("/set", authGuard(rateGuard(http.HandlerFunc(handleSetFlag(engine)))))
 	http.Handle("/get_flags", authGuard(rateGuard(http.HandlerFunc(handleGetFlagsByService(engine)))))
 
+	// --- GLOBAL INTERNET INGRESS WRAPPER ---
+	// Passing http.DefaultServeMux wrapped by CORSEnforcer ensures that /health, /docs,
+	// and all mutation endpoints catch the browser handshake automatically.
+	globalHandler := middleware.CORSEnforcer(http.DefaultServeMux)
+
 	log.Printf("Flagship Engine online [%s mode]. Control port listening on :8080...", cfg.AppEnv)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", globalHandler); err != nil {
 		log.Fatalf("Server panic: %v", err)
 	}
 }

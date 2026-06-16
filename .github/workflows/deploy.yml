@@ -1,66 +1,35 @@
-name: Deploy Flagship Engine to ECR and ECS
+name: Continuous Integration (Flagship Engine)
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
-    name: Build, Push, and Deploy
+  validate:
+    name: Build Verification & Lint
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Pull down the Go source code from your repository
+    # 1. Pull down the source code from your repository
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. Authenticate GitHub with your AWS Account using your Secrets
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
+    # 2. Set up native Go environment to run unit tests
+    - name: Set up Go
+      uses: actions/setup-go@v5
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        go-version: '1.26.3'
 
-    # 3. Cryptographically log the GitHub runner into your private AWS ECR Registry
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-
-    # 4. Build the Dockerfile layers using Git SHA and push it to AWS
-    - name: Build, Tag, and Push Image to ECR
-      id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: flagship-engine
-        IMAGE_TAG: ${{ github.sha }}
+    # 3. Execute native test suite locally on the runner
+    - name: Run Unit Tests
       run: |
-        docker build --no-cache -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        go test -v -race ./...
 
-    # 5. Download the active running Task Definition from your ECS Cluster
-    - name: Download Active Task Definition from AWS
+    # 4. Verify the Dockerfile builds cleanly as a final sanity check
+    - name: Test Local Docker Build
       run: |
-        aws ecs describe-task-definition --task-definition flagship-engine-task --query taskDefinition > task-definition.json
-
-    # 6. Inject the fresh Docker image and update the APP_HOST environment variable
-    - name: Update Task Definition Configuration
-      id: render-task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: task-definition.json
-        container-name: flagship-engine
-        image: ${{ steps.build-image.outputs.image }}
-        environment-variables: |
-          APP_HOST=flagship-alb-1352276678.eu-central-1.elb.amazonaws.com
-
-    # 7. Notify ECS to perform a zero-downtime rolling update with the new definition
-    - name: Deploy Fresh Task Definition to Amazon ECS Service
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-      with:
-        task-definition: ${{ steps.render-task-def.outputs.task-definition }}
-        service: flagship-engine-task-service-xdmz89ok
-        cluster: flagship-cluster
-        wait-for-service-stability: true
+        docker build -t flagship-engine:test .

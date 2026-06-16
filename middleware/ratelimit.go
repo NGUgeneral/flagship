@@ -33,8 +33,8 @@ type FastAPIErrorResponse struct {
 
 // RateLimiterClient handles optimized outbound execution to the AWS Lambda service layer
 type RateLimiterClient struct {
-	httpClient *http.Client
-	lambdaURL  string
+	httpClient  *http.Client
+	endpointURL string
 }
 
 // RateLimiterErrorDetail maps the internal 429 error structure from Phase 1
@@ -55,9 +55,9 @@ type RateCheck400Response struct {
 }
 
 // NewRateLimiterClient instantiates a client configured with aggressive connection pooling
-func NewRateLimiterClient(lambdaURL string, timeout time.Duration) *RateLimiterClient {
+func NewRateLimiterClient(endpointURL string, timeout time.Duration) *RateLimiterClient {
 	return &RateLimiterClient{
-		lambdaURL: lambdaURL,
+		endpointURL: endpointURL,
 		httpClient: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
@@ -84,7 +84,7 @@ func (c *RateLimiterClient) IsAllowed(ctx context.Context, reqBody *RateCheckReq
 		return true
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.lambdaURL, bytes.NewBuffer(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpointURL, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Printf("[RATE-LIMITER] Error creating HTTP request context: %v. Defaulting to FAIL-OPEN.", err)
 		return true
