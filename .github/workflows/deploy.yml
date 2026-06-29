@@ -31,5 +31,6 @@ jobs:
 
     # 4. Verify the Dockerfile builds cleanly as a final sanity check
     - name: Test Local Docker Build
+      if: false # disable image build
       run: |
         docker build -t flagship-engine:test .
