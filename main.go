@@ -176,9 +176,9 @@ func main() {
 
 	// --- PROTECTED ROUTING WITH INLINE DEFENSIVE RATE LIMITING ---
 	// Execution order: Auth verification -> Rate validation checks -> Flag computation logic
-	http.Handle("/get", authGuard(rateGuard(http.HandlerFunc(handleGetFlag(engine)))))
-	http.Handle("/set", authGuard(rateGuard(http.HandlerFunc(handleSetFlag(engine)))))
-	http.Handle("/get_flags", authGuard(rateGuard(http.HandlerFunc(handleGetFlagsByService(engine)))))
+	http.Handle("/api/v1/get", authGuard(rateGuard(http.HandlerFunc(handleGetFlag(engine)))))
+	http.Handle("/api/v1/set", authGuard(rateGuard(http.HandlerFunc(handleSetFlag(engine)))))
+	http.Handle("/api/v1/get_flags", authGuard(rateGuard(http.HandlerFunc(handleGetFlagsByService(engine)))))
 
 	// --- GLOBAL INTERNET INGRESS WRAPPER ---
 	// Passing http.DefaultServeMux wrapped by CORSEnforcer ensures that /health, /docs,
