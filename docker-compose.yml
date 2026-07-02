@@ -2,7 +2,7 @@ services:
   # Local Redis container acting as our local Upstash mirror
   redis-local:
     image: redis:7.2-alpine
-    container_name: flagship_redis_local
+    container_name: headsntails_redis_local
     ports:
       - "6379:6379"
     volumes:

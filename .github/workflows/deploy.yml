@@ -1,4 +1,4 @@
-name: Continuous Integration (Flagship Engine)
+name: Continuous Integration (headsntails-core)
 
 on:
   push:
@@ -33,4 +33,4 @@ jobs:
     - name: Test Local Docker Build
       if: false # disable image build
       run: |
-        docker build -t flagship-engine:test .
+        docker build -t headsntails-core:test .

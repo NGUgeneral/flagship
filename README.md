@@ -1,6 +1,6 @@
-# Flagship Core Engine (`flagship`)
+# headsntails Core Engine (`headsntails-core`)
 
-Flagship Core is a high-concurrency, lightning-fast feature flag evaluation engine written in Go. It operates on a low-latency cache model optimized for critical edge lookups.
+headsntails-core is a high-concurrency, lightning-fast feature flag evaluation engine written in Go. It operates on a low-latency cache model optimized for critical edge lookups.
 
 ## Data Strategy: Write-Through Cache & Hydration
 To eliminate database latency bottlenecks on high-volume evaluation requests, the core engine splits its data paths:
@@ -30,4 +30,4 @@ The engine relies entirely on runtime environment variable injection:
 
 ## Local Development Setup
 
-Please refer to [Flagship-Platform](https://github.com/NGUgeneral/flagship-platform) for detailed local development setup instructions.
+Please refer to [`headsntails` Platform](https://github.com/NGUgeneral/headsntails-platform) for detailed local development setup instructions.

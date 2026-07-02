@@ -48,7 +48,7 @@ host: localhost:8080
 info:
   contact: {}
   description: High-performance inline feature flagging control plane.
-  title: Flagship Feature Engine API
+  title: headsntails Feature Engine API
   version: "1.0"
 paths:
   /get:
