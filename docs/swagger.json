@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "description": "High-performance inline feature flagging control plane.",
-        "title": "Flagship Feature Engine API",
+        "title": "headsntails Feature Engine API",
         "contact": {},
         "version": "1.0"
     },

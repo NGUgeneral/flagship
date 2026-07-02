@@ -307,7 +307,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "Flagship Feature Engine API",
+	Title:            "headsntails Feature Engine API",
 	Description:      "High-performance inline feature flagging control plane.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

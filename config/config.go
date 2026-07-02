@@ -63,7 +63,7 @@ func LoadConfig() *Config {
 
 	redisHashKey := os.Getenv("REDIS_HASH_KEY")
 	if redisHashKey == "" {
-		redisHashKey = "flagship:v1:flags"
+		redisHashKey = "headsntails:v1:flags"
 	}
 
 	rateLimiterURL := os.Getenv("RATE_LIMITER_URL")
@@ -85,14 +85,14 @@ func LoadConfig() *Config {
 		}
 
 		ssmClient := ssm.NewFromConfig(awsCfg)
-		paramName := "/flagship/prod/jwt-secret"
+		paramName := "/headsntails-core/prod/jwt-secret"
 
 		out, err := ssmClient.GetParameter(ctx, &ssm.GetParameterInput{
 			Name:           &paramName,
 			WithDecryption: aws.Bool(true),
 		})
 		if err != nil {
-			log.Fatalf("CRITICAL: Flagship failed to load production secret from SSM Parameter Store: %v", err)
+			log.Fatalf("CRITICAL: headsntails failed to load production secret from SSM Parameter Store: %v", err)
 		}
 
 		secret = *out.Parameter.Value

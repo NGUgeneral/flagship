@@ -1,4 +1,4 @@
-module flagship
+module headsntails-core
 
 go 1.26.3
 

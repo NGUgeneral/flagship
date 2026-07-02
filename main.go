@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"flagship/config"
-	"flagship/docs"
-	"flagship/middleware"
+	"headsntails-core/config"
+	"headsntails-core/docs"
+	"headsntails-core/middleware"
 
-	_ "flagship/docs" // Dynamically generated package by 'swag init'
+	_ "headsntails-core/docs" // Dynamically generated package by 'swag init'
 
 	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -143,7 +143,7 @@ type ErrorResponse struct {
 }
 
 // Global runtime metadata configuration block
-// @title                      Flagship Feature Engine API
+// @title                      headsntails Feature Engine API
 // @version                    1.0
 // @description                High-performance inline feature flagging control plane.
 // @host                       localhost:8080
@@ -185,7 +185,7 @@ func main() {
 	// and all mutation endpoints catch the browser handshake automatically.
 	globalHandler := middleware.CORSEnforcer(http.DefaultServeMux)
 
-	log.Printf("Flagship Engine online [%s mode]. Control port listening on :8080...", cfg.AppEnv)
+	log.Printf("headsntails Core online [%s mode]. Control port listening on :8080...", cfg.AppEnv)
 	if err := http.ListenAndServe(":8080", globalHandler); err != nil {
 		log.Fatalf("Server panic: %v", err)
 	}

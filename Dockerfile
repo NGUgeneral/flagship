@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # Compile the Go application into a static binary optimized for production Linux
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o flagship-engine .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o headsntails-core .
 
 # --- Stage 2: Pristine Runtime Environment ---
 FROM alpine:3.19 AS runtime
@@ -23,10 +23,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy only the compiled binary from the builder stage
-COPY --from=builder /app/flagship-engine .
+COPY --from=builder /app/headsntails-core .
 
 # Expose the internal control port your app is listening on
 EXPOSE 8080
 
 # Run the binary
-CMD ["./flagship-engine"]
+CMD ["./headsntails-core"]
